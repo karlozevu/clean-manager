@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DiskLens · 磁盘空间可视化清理</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">DL</div>
+      <div class="brand-txt"><div class="brand-name">DiskLens</div><div class="brand-sub">磁盘空间透视与清理</div></div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <button class="nav-item active" data-action="nav" data-view="overview">
+        <svg viewBox="0 0 20 20" class="ico"><rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1.5"/><rect x="11" y="2.5" width="6.5" height="6.5" rx="1.5"/><rect x="2.5" y="11" width="6.5" height="6.5" rx="1.5"/><rect x="11" y="11" width="6.5" height="6.5" rx="1.5"/></svg>
+        空间概览
+      </button>
+      <button class="nav-item" data-action="nav" data-view="software">
+        <svg viewBox="0 0 20 20" class="ico"><rect x="2.5" y="3" width="15" height="11" rx="2"/><path d="M7 17h6M10 14v3"/></svg>
+        软件清理 <span class="nav-badge" id="badge-sw">0</span>
+      </button>
+      <button class="nav-item" data-action="nav" data-view="files">
+        <svg viewBox="0 0 20 20" class="ico"><path d="M2.5 5.5a2 2 0 0 1 2-2h3.2l1.8 2h6a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z"/></svg>
+        文件清理
+      </button>
+      <button class="nav-item" data-action="nav" data-view="cleanup">
+        <svg viewBox="0 0 20 20" class="ico"><path d="M4 5h12M4 10h12M4 15h8"/></svg>
+        清理清单 <span class="nav-badge accent" id="badge-clean">0</span>
+      </button>
+    </nav>
+
+    <div class="side-block">
+      <div class="side-title">扫描范围</div>
+      <input id="root-input" class="input" type="text" spellcheck="false" placeholder="输入目录绝对路径">
+      <div class="shortcuts" id="shortcuts"></div>
+      <div class="opt-row">
+        <span>扫描深度</span>
+        <select id="depth" class="select">
+          <option value="3">3 层</option>
+          <option value="4">4 层</option>
+          <option value="5">5 层</option>
+          <option value="6" selected>6 层</option>
+          <option value="8">8 层</option>
+        </select>
+      </div>
+      <label class="opt-check"><input type="checkbox" id="include-hidden" checked><span>包含隐藏文件</span></label>
+      <button class="btn primary block" id="scan-btn" data-action="scan">开始扫描</button>
+      <button class="btn ghost block" data-action="demo">加载演示数据</button>
+    </div>
+
+    <div class="scan-panel" id="scan-panel" hidden>
+      <div class="scan-head"><span id="scan-phase">正在扫描目录</span><button class="link danger" data-action="cancel-scan">取消</button></div>
+      <div class="bar"><div class="bar-fill" id="scan-fill"></div></div>
+      <div class="scan-meta"><span id="scan-count">0 个文件</span><span id="scan-pct">0%</span></div>
+      <div class="scan-path" id="scan-path"></div>
+    </div>
+
+    <div class="side-foot">
+      <span class="live-dot"></span>
+      <span id="server-status">本地服务已连接</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="crumb"><strong id="view-title">空间概览</strong><span class="slash">/</span><span id="root-label">未扫描</span></div>
+      <div class="top-actions">
+        <span class="tag demo-tag" id="demo-tag" hidden>演示数据</span>
+        <span class="tag" id="scan-time" hidden></span>
+        <button class="btn ghost" data-action="scan">重新扫描</button>
+      </div>
+    </header>
+
+    <div class="content" id="content">
+      <!-- 概览 -->
+      <section class="view" id="view-overview">
+        <div class="kpis" id="kpis"></div>
+        <div class="card disk-card" id="disk-card"></div>
+        <div class="overview-grid">
+          <div class="card tm-card">
+            <div class="card-head">
+              <div><h2>目录占用分布</h2><p class="sub">点击方块下钻；点击末级方块加入清理清单</p></div>
+              <div class="crumb-mini" id="tm-crumb"></div>
+            </div>
+            <div class="treemap-box" id="treemap-box"><svg id="treemap-svg"></svg></div>
+            <div class="tm-legend" id="tm-legend"></div>
+          </div>
+          <div class="side-cards">
+            <div class="card">
+              <div class="card-head"><div><h2>文件类型分布</h2><p class="sub">按扩展名归类</p></div></div>
+              <div class="donut-wrap"><div id="donut"></div><div class="donut-legend" id="donut-legend"></div></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h2>软件占用榜</h2><p class="sub">按可识别的软件 / 缓存排序</p></div></div>
+              <div id="top-software" class="bars"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 软件清理 -->
+      <section class="view" id="view-software" hidden>
+        <div class="section-intro">
+          <div><h1>软件清理</h1><p>按软件与缓存目录识别占用。低风险项目是可再生成的缓存；需确认项目可能包含个人文件。</p></div>
+          <div class="filter-row" id="risk-filters"></div>
+        </div>
+        <div class="summary-strip" id="sw-summary"></div>
+        <div class="sw-grid" id="sw-grid"></div>
+      </section>
+
+      <!-- 文件清理 -->
+      <section class="view" id="view-files" hidden>
+        <div class="section-intro">
+          <div><h1>文件清理</h1><p>从目录、体积、时间和重复度四个角度定位可清理内容，逐项勾选后进入清理清单。</p></div>
+        </div>
+        <div class="tabs" id="file-tabs"></div>
+        <div class="card table-card" id="file-panel"></div>
+      </section>
+
+      <!-- 清理清单 -->
+      <section class="view" id="view-cleanup" hidden>
+        <div class="section-intro">
+          <div><h1>清理清单</h1><p>所有操作仅把文件移入系统回收站，可随时还原；单批最多 10 项，需二次确认。</p></div>
+          <button class="btn ghost" data-action="clear-selection">清空清单</button>
+        </div>
+        <div class="notice" id="cleanup-notice"></div>
+        <div class="card table-card" id="cleanup-list"></div>
+        <div class="cleanup-footer card" id="cleanup-footer"></div>
+        <div class="card" id="trash-result" hidden></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="tooltip" id="tooltip" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<div class="modal-mask" id="modal" hidden>
+  <div class="modal">
+    <div class="modal-head"><div class="warn-mark">!</div><div><h2>确认移入回收站</h2><p class="sub">此操作会移动以下项目，请在核对后继续</p></div></div>
+    <div class="modal-body">
+      <div class="warn-text">这些项目将从原位置移入系统回收站。回收站中的文件可以还原，但请确认其中没有仍在使用的数据。</div>
+      <div class="modal-list" id="modal-list"></div>
+      <label class="confirm-check"><input type="checkbox" id="confirm-checkbox"><span>我已逐项核对上述路径，确认可以移入回收站</span></label>
+    </div>
+    <div class="modal-foot">
+      <span class="modal-total" id="modal-total"></span>
+      <button class="btn ghost" data-action="modal-close">取消</button>
+      <button class="btn danger-btn" id="modal-execute" data-action="modal-execute" disabled>确认移入回收站</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "clean-manager",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DiskLens - local disk space visualizer and safe cleanup tool (zero dependencies)",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
