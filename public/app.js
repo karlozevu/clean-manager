@@ -696,6 +696,34 @@ function bindEvents() {
     if (e.key === 'Escape') $('modal').hidden = true;
   });
 
+  // 主内容使用内层滚动容器，默认不会响应键盘翻页；此处补上 PageUp/PageDown/方向键/Home/End。
+  // 移动端走整页滚动，交给浏览器默认行为，不拦截。
+  document.addEventListener('keydown', (e) => {
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (!$('modal').hidden) return;
+    const t = e.target;
+    if (t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName))) return;
+    const c = $('content');
+    if (c.scrollHeight <= c.clientHeight + 2) return;
+    const pageStep = c.clientHeight * 0.9;
+    let delta = 0;
+    switch (e.key) {
+      case 'PageDown': delta = pageStep; break;
+      case 'PageUp': delta = -pageStep; break;
+      case 'ArrowDown': delta = 60; break;
+      case 'ArrowUp': delta = -60; break;
+      case 'Home': c.scrollTop = 0; e.preventDefault(); return;
+      case 'End': c.scrollTop = c.scrollHeight; e.preventDefault(); return;
+      case ' ':
+        if (/^(BUTTON|A|SUMMARY)$/.test(t.tagName)) return; // 空格应激活按钮
+        delta = e.shiftKey ? -pageStep : pageStep;
+        break;
+      default: return;
+    }
+    c.scrollTop += delta;
+    e.preventDefault();
+  });
+
   document.addEventListener('mousemove', (e) => {
     const t = e.target.closest?.('.tm-rect');
     const tip = $('tooltip');
